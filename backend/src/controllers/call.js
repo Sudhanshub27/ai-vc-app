@@ -1,10 +1,10 @@
-const { v4: uuidv4 } = require('uuid');
+const { randomUUID } = require('crypto');
 const Call = require('../models/Call');
 
 // POST /api/calls/create
 const createCall = async (req, res) => {
     try {
-        const roomId = uuidv4();
+        const roomId = randomUUID();
         const call = await Call.create({
             roomId,
             initiator: req.userId,
