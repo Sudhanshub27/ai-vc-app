@@ -61,16 +61,19 @@ const initSocketHandlers = (io) => {
 
         // WebRTC Offer (forwarding SDP offer to specific peer)
         socket.on('offer', ({ to, offer }) => {
+            console.log(`📡 Offer: ${socket.id} -> ${to}`);
             io.to(to).emit('offer', { from: socket.id, offer });
         });
 
         // WebRTC Answer
         socket.on('answer', ({ to, answer }) => {
+            console.log(`📡 Answer: ${socket.id} -> ${to}`);
             io.to(to).emit('answer', { from: socket.id, answer });
         });
 
         // ICE Candidate relay
         socket.on('ice-candidate', ({ to, candidate }) => {
+            console.log(`📡 ICE: ${socket.id} -> ${to}`);
             io.to(to).emit('ice-candidate', { from: socket.id, candidate });
         });
 

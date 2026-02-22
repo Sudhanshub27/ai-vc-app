@@ -46,7 +46,7 @@ function timeAgo(dateStr: string) {
 }
 
 export default function DashboardPage() {
-    const { user, logout } = useAuth();
+    const { user, logout, isLoading } = useAuth();
     const router = useRouter();
     const [calls, setCalls] = useState<CallRecord[]>([]);
     const [loadingCalls, setLoadingCalls] = useState(true);
@@ -56,6 +56,7 @@ export default function DashboardPage() {
     const [starting, setStarting] = useState(false);
 
     useEffect(() => {
+        if (isLoading) return;
         if (!user) { router.push("/login"); return; }
         api.get("/calls/history?limit=5")
             .then((r) => setCalls(r.data.data.calls))

@@ -31,7 +31,7 @@ function formatDate(dateStr: string) {
 }
 
 export default function HistoryPage() {
-    const { user } = useAuth();
+    const { user, isLoading } = useAuth();
     const router = useRouter();
     const [calls, setCalls] = useState<CallRecord[]>([]);
     const [loading, setLoading] = useState(true);
@@ -49,9 +49,10 @@ export default function HistoryPage() {
     };
 
     useEffect(() => {
+        if (isLoading) return;
         if (!user) { router.push("/login"); return; }
         fetchCalls(page);
-    }, [user, router, page]);
+    }, [user, router, page, isLoading]);
 
     return (
         <div className="min-h-screen bg-[#0a0a1a] flex">

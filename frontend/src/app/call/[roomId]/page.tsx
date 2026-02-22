@@ -22,7 +22,7 @@ export default function CallPage() {
     const params = useParams();
     const roomId = params.roomId as string;
     const router = useRouter();
-    const { user, accessToken } = useAuth();
+    const { user, accessToken, isLoading } = useAuth();
 
     const localVideoRef = useRef<HTMLVideoElement>(null);
     const remoteVideoRef = useRef<HTMLVideoElement>(null);
@@ -31,6 +31,9 @@ export default function CallPage() {
     const socketRef = useRef<Socket | null>(null);
     const recognitionRef = useRef<unknown>(null);
     const remotePeerSocketId = useRef<string | null>(null);
+    const pendingCandidates = useRef<RTCIceCandidate[]>([]);
+    const isInitiator = useRef(false);
+    const isInitializing = useRef(false);
 
     const [isMuted, setIsMuted] = useState(false);
     const [isCamOff, setIsCamOff] = useState(false);
@@ -40,6 +43,8 @@ export default function CallPage() {
     const [callDuration, setCallDuration] = useState(0);
     const [loading, setLoading] = useState(true);
     const [copied, setCopied] = useState(false);
+    const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+    const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
 
     const addCaption = useCallback((c: Caption) => {
         setCaptions((prev) => [...prev.slice(-4), c]);
@@ -55,12 +60,24 @@ export default function CallPage() {
         });
 
         // Add local tracks
-        localStreamRef.current?.getTracks().forEach((t) => pc.addTrack(t, localStreamRef.current!));
+        if (localStreamRef.current) {
+            console.log("WebRTC: Adding local tracks to PC");
+            localStreamRef.current.getTracks().forEach((t) => {
+                pc.addTrack(t, localStreamRef.current!);
+            });
+        }
 
         // Receive remote stream
         pc.ontrack = (event) => {
-            if (remoteVideoRef.current) {
-                remoteVideoRef.current.srcObject = event.streams[0];
+            console.log("WebRTC: Received remote track", event.streams[0]);
+            if (event.streams[0]) {
+                setRemoteStream(event.streams[0]);
+            }
+        };
+
+        pc.oniceconnectionstatechange = () => {
+            console.log("WebRTC: ICE connection state:", pc.iceConnectionState);
+            if (pc.iceConnectionState === "connected" || pc.iceConnectionState === "completed") {
                 setIsConnected(true);
             }
         };
@@ -68,7 +85,23 @@ export default function CallPage() {
         // Send ICE candidates
         pc.onicecandidate = (event) => {
             if (event.candidate && remotePeerSocketId.current) {
+                console.log("WebRTC: Sending ICE candidate to", remotePeerSocketId.current);
                 socket.emit("ice-candidate", { to: remotePeerSocketId.current, candidate: event.candidate });
+            }
+        };
+
+        // Handle negotiation (when tracks are added)
+        pc.onnegotiationneeded = async () => {
+            console.log("WebRTC: Negotiation needed. Is initiator?", isInitiator.current);
+            if (isInitiator.current && remotePeerSocketId.current) {
+                try {
+                    const offer = await pc.createOffer();
+                    await pc.setLocalDescription(offer);
+                    console.log("WebRTC: Sending offer to", remotePeerSocketId.current);
+                    socket.emit("offer", { to: remotePeerSocketId.current, offer });
+                } catch (e) {
+                    console.error("WebRTC: Negotiation error:", e);
+                }
             }
         };
 
@@ -104,16 +137,18 @@ export default function CallPage() {
     }, [roomId]);
 
     useEffect(() => {
+        if (isLoading) return;
         if (!user || !accessToken) { router.push("/login"); return; }
+        if (isInitializing.current) return;
+        isInitializing.current = true;
 
         const init = async () => {
             try {
+                console.log("CallPage: Initializing...");
                 // Get user media
                 const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
                 localStreamRef.current = stream;
-                if (localVideoRef.current) {
-                    localVideoRef.current.srcObject = stream;
-                }
+                setLocalStream(stream);
 
                 // Connect socket
                 const socket = getSocket(accessToken);
@@ -121,46 +156,93 @@ export default function CallPage() {
 
                 // Socket events
                 socket.on("room-users", (users: { socketId: string }[]) => {
-                    setParticipantCount(users.length);
+                    setParticipantCount(Math.max(1, users.length));
                 });
 
                 socket.on("user-joined", async ({ socketId }: { socketId: string }) => {
+                    console.log("WebRTC: User joined", socketId);
                     remotePeerSocketId.current = socketId;
+                    isInitiator.current = true; 
                     setParticipantCount((p) => p + 1);
                     toast.success("Someone joined the call!");
 
-                    // Create offer
-                    const pc = createPeerConnection(socket);
-                    peerConnectionRef.current = pc;
-                    const offer = await pc.createOffer();
-                    await pc.setLocalDescription(offer);
-                    socket.emit("offer", { to: socketId, offer });
+                    if (!peerConnectionRef.current) {
+                        peerConnectionRef.current = createPeerConnection(socket);
+                    }
                 });
 
                 socket.on("offer", async ({ from, offer }: { from: string; offer: RTCSessionDescriptionInit }) => {
+                    console.log("WebRTC: Received offer from", from);
                     remotePeerSocketId.current = from;
-                    const pc = createPeerConnection(socket);
-                    peerConnectionRef.current = pc;
-                    await pc.setRemoteDescription(offer);
-                    const answer = await pc.createAnswer();
-                    await pc.setLocalDescription(answer);
-                    socket.emit("answer", { to: from, answer });
+                    isInitiator.current = false;
+                    setParticipantCount(2);
+                    
+                    if (!peerConnectionRef.current) {
+                        peerConnectionRef.current = createPeerConnection(socket);
+                    }
+                    
+                    try {
+                        await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(offer));
+                        const answer = await peerConnectionRef.current.createAnswer();
+                        await peerConnectionRef.current.setLocalDescription(answer);
+                        console.log("WebRTC: Sending answer to", from);
+                        socket.emit("answer", { to: from, answer });
+
+                        console.log(`WebRTC: Processing ${pendingCandidates.current.length} pending ICE candidates`);
+                        pendingCandidates.current.forEach(async (c: RTCIceCandidate) => {
+                            try { await peerConnectionRef.current?.addIceCandidate(c); } catch (e) { console.error(e); }
+                        });
+                        pendingCandidates.current = [];
+                    } catch (e) {
+                        console.error("WebRTC: Error handling offer:", e);
+                    }
                 });
 
                 socket.on("answer", async ({ answer }: { answer: RTCSessionDescriptionInit }) => {
-                    await peerConnectionRef.current?.setRemoteDescription(answer);
+                    console.log("WebRTC: Received answer");
+                    if (peerConnectionRef.current) {
+                        try {
+                            await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(answer));
+
+                            console.log(`WebRTC: Processing ${pendingCandidates.current.length} pending ICE candidates (after answer)`);
+                            pendingCandidates.current.forEach(async (c: RTCIceCandidate) => {
+                                try { await peerConnectionRef.current?.addIceCandidate(c); } catch (e) { console.error(e); }
+                            });
+                            pendingCandidates.current = [];
+                        } catch (e) {
+                            console.error("WebRTC: Error setting remote description:", e);
+                        }
+                    }
                 });
 
                 socket.on("ice-candidate", async ({ candidate }: { candidate: RTCIceCandidateInit }) => {
-                    try {
-                        await peerConnectionRef.current?.addIceCandidate(candidate);
-                    } catch { /* ignore */ }
+                    if (peerConnectionRef.current) {
+                        try {
+                            const rtcCandidate = new RTCIceCandidate(candidate);
+                            if (peerConnectionRef.current.remoteDescription) {
+                                console.log("WebRTC: Adding ICE candidate immediately");
+                                await peerConnectionRef.current.addIceCandidate(rtcCandidate);
+                            } else {
+                                console.log("WebRTC: Queuing ICE candidate");
+                                pendingCandidates.current.push(rtcCandidate);
+                            }
+                        } catch (e) {
+                            console.error("WebRTC: Error adding ICE candidate:", e);
+                        }
+                    }
                 });
 
                 socket.on("user-left", () => {
+                    console.log("WebRTC: User left");
                     setIsConnected(false);
-                    setParticipantCount((p) => Math.max(1, p - 1));
-                    if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
+                    setParticipantCount(1);
+                    isInitiator.current = false;
+                    setRemoteStream(null);
+                    if (peerConnectionRef.current) {
+                        peerConnectionRef.current.close();
+                        peerConnectionRef.current = null;
+                    }
+                    pendingCandidates.current = [];
                     toast("Participant left the call.", { icon: "👋" });
                 });
 
@@ -183,6 +265,7 @@ export default function CallPage() {
                 toast.error("Could not access camera/microphone.");
                 console.error(err);
                 setLoading(false);
+                isInitializing.current = false;
             }
         };
 
@@ -192,23 +275,38 @@ export default function CallPage() {
         const timer = setInterval(() => setCallDuration((d) => d + 1), 1000);
 
         return () => {
+            console.log("CallPage: Cleaning up...");
             clearInterval(timer);
             (recognitionRef.current as { stop?: () => void } | null)?.stop?.();
             peerConnectionRef.current?.close();
+            peerConnectionRef.current = null;
             localStreamRef.current?.getTracks().forEach((t) => t.stop());
+            localStreamRef.current = null;
+            
+            if (socketRef.current) {
+                socketRef.current.off("room-users");
+                socketRef.current.off("user-joined");
+                socketRef.current.off("offer");
+                socketRef.current.off("answer");
+                socketRef.current.off("ice-candidate");
+                socketRef.current.off("user-left");
+                socketRef.current.off("speech-caption");
+                socketRef.current.off("sign-caption");
+            }
             disconnectSocket();
+            isInitializing.current = false;
         };
-    }, [user, accessToken, router, roomId, createPeerConnection, startSpeechRecognition, addCaption]);
+    }, [user, accessToken, router, roomId, createPeerConnection, startSpeechRecognition, addCaption, isLoading]);
 
     const toggleMute = () => {
-        if (!localStreamRef.current) return;
-        localStreamRef.current.getAudioTracks().forEach((t) => { t.enabled = !t.enabled; });
+        if (!localStream) return;
+        localStream.getAudioTracks().forEach((t) => { t.enabled = !t.enabled; });
         setIsMuted((m) => !m);
     };
 
     const toggleCam = () => {
-        if (!localStreamRef.current) return;
-        localStreamRef.current.getVideoTracks().forEach((t) => { t.enabled = !t.enabled; });
+        if (!localStream) return;
+        localStream.getVideoTracks().forEach((t) => { t.enabled = !t.enabled; });
         setIsCamOff((c) => !c);
     };
 
@@ -216,7 +314,7 @@ export default function CallPage() {
         try { await api.patch(`/calls/${roomId}/end`); } catch { /* ignore */ }
         (recognitionRef.current as { stop?: () => void } | null)?.stop?.();
         peerConnectionRef.current?.close();
-        localStreamRef.current?.getTracks().forEach((t) => t.stop());
+        localStream?.getTracks().forEach((t) => t.stop());
         disconnectSocket();
         router.push("/dashboard");
     };
@@ -270,35 +368,14 @@ export default function CallPage() {
                     </div>
                 ) : (
                     <div className={`video-grid h-full ${isConnected ? "two" : "one"}`}>
-                        {/* Remote video or waiting state */}
-                        {isConnected ? (
-                            <div className="relative rounded-2xl overflow-hidden bg-[#0f0f23] border border-white/5">
-                                <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
-                                <div className="absolute bottom-3 left-3 glass px-3 py-1 rounded-full text-xs text-slate-300">
-                                    Remote User
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="rounded-2xl overflow-hidden bg-gradient-to-br from-violet-900/20 to-purple-950/40 border border-violet-800/20 flex flex-col items-center justify-center">
-                                <div className="w-20 h-20 rounded-full glass-purple flex items-center justify-center mb-4 float">
-                                    <Users size={32} className="text-violet-400" />
-                                </div>
-                                <p className="text-slate-300 font-medium mb-2">Waiting for others to join...</p>
-                                <p className="text-slate-500 text-sm mb-4">Share the link to invite</p>
-                                <button
-                                    onClick={copyLink}
-                                    className="flex items-center gap-2 px-4 py-2 rounded-xl glass-purple text-violet-300 text-sm font-medium hover:bg-violet-600/20 transition-all"
-                                >
-                                    <Link2 size={16} />
-                                    Copy Invite Link
-                                </button>
-                            </div>
-                        )}
-
-                        {/* Local video */}
-                        <div className={`relative rounded-2xl overflow-hidden bg-[#0f0f23] border border-white/5 ${isConnected ? "" : "absolute bottom-4 right-4 w-48 h-32 rounded-xl"}`}>
+                        
+                        {/* 1) Local Video (Always present) */}
+                        <div className={`relative rounded-2xl overflow-hidden border border-white/5 ${isConnected ? "bg-[#0f0f23]" : "bg-[#0f0f23] w-full h-full"}`}>
                             <video
-                                ref={localVideoRef}
+                                ref={(el) => {
+                                    if (el && localStream) el.srcObject = localStream;
+                                    (localVideoRef as any).current = el;
+                                }}
                                 autoPlay
                                 playsInline
                                 muted
@@ -307,15 +384,41 @@ export default function CallPage() {
                             />
                             {isCamOff && (
                                 <div className="absolute inset-0 bg-[#0f0f23] flex items-center justify-center">
-                                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-violet-500 to-teal-500 flex items-center justify-center text-lg font-bold">
+                                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-violet-500 to-teal-500 flex items-center justify-center text-2xl font-bold">
                                         {user?.name?.charAt(0).toUpperCase()}
                                     </div>
                                 </div>
                             )}
-                            <div className="absolute bottom-1.5 left-1.5 glass px-2 py-0.5 rounded-full text-xs text-slate-300">
+                            <div className="absolute bottom-3 left-3 glass px-3 py-1 rounded-full text-xs text-slate-300">
                                 You {isMuted && "· Muted"}
                             </div>
                         </div>
+
+                        {/* 2) Remote Video (Only when connected) */}
+                        {isConnected && remoteStream ? (
+                            <div className="relative rounded-2xl overflow-hidden bg-[#0f0f23] border border-white/5">
+                                <video 
+                                    ref={(el) => {
+                                        if (el && remoteStream) el.srcObject = remoteStream;
+                                        (remoteVideoRef as any).current = el;
+                                    }} 
+                                    autoPlay 
+                                    playsInline 
+                                    className="w-full h-full object-cover" 
+                                />
+                                <div className="absolute bottom-3 left-3 glass px-3 py-1 rounded-full text-xs text-slate-300">
+                                    Remote User
+                                </div>
+                            </div>
+                        ) : participantCount > 1 ? (
+                            /* Waiting to connect WebRTC but Socket joined */
+                            <div className="relative rounded-2xl overflow-hidden bg-[#0f0f23] border border-white/5 flex items-center justify-center">
+                                <Loader2 size={36} className="text-violet-400 animate-spin" />
+                                <div className="absolute bottom-3 left-3 glass px-3 py-1 rounded-full text-xs text-slate-300">
+                                    Connecting...
+                                </div>
+                            </div>
+                        ) : null}
                     </div>
                 )}
 

@@ -14,15 +14,16 @@ const roles = [
 ];
 
 export default function ProfilePage() {
-    const { user, logout } = useAuth();
+    const { user, logout, isLoading } = useAuth();
     const router = useRouter();
     const [form, setForm] = useState({ name: "", role: "both" });
     const [saving, setSaving] = useState(false);
 
     useEffect(() => {
+        if (isLoading) return;
         if (!user) { router.push("/login"); return; }
         setForm({ name: user.name, role: user.role });
-    }, [user, router]);
+    }, [user, router, isLoading]);
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();

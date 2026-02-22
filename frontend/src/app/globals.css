@@ -153,5 +153,12 @@ input:focus-within, textarea:focus-within {
   height: 100%;
 }
 
-.video-grid.one { grid-template-columns: 1fr; }
-.video-grid.two { grid-template-columns: 1fr 1fr; }
+.video-grid.one {
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+}
+
+.video-grid.two {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr;
+}
