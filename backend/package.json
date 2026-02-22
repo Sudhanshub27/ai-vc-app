@@ -1,0 +1,13 @@
+{
+  "name": "vc-app-backend",
+  "version": "1.0.0",
+  "description": "Sign Language Video Calling App - Backend API",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "nodemon src/index.js",
+    "start": "node src/index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
