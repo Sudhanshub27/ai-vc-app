@@ -9,6 +9,8 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@mediapipe/camera_utils": "^0.3.1675466862",
+    "@mediapipe/hands": "^0.4.1675469240",
     "@types/simple-peer": "^9.11.9",
     "axios": "^1.13.5",
     "lucide-react": "^0.575.0",

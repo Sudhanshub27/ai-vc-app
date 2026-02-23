@@ -34,6 +34,7 @@ export default function CallPage() {
     const pendingCandidates = useRef<RTCIceCandidate[]>([]);
     const isInitiator = useRef(false);
     const isInitializing = useRef(false);
+    const handsRef = useRef<any>(null);
 
     const [isMuted, setIsMuted] = useState(false);
     const [isCamOff, setIsCamOff] = useState(false);
@@ -136,6 +137,18 @@ export default function CallPage() {
         recognitionRef.current = recognition;
     }, [roomId]);
 
+    // Handle landmark results
+    const onResults = useCallback((results: any) => {
+        if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+            const data = results.multiHandLandmarks.map((hand: any) =>
+                hand.map((lm: any) => [lm.x, lm.y, lm.z])
+            );
+            if (socketRef.current) {
+                socketRef.current.emit("hand-landmarks", { roomId, landmarks: data });
+            }
+        }
+    }, [roomId]);
+
     useEffect(() => {
         if (isLoading) return;
         if (!user || !accessToken) { router.push("/login"); return; }
@@ -149,6 +162,47 @@ export default function CallPage() {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
                 localStreamRef.current = stream;
                 setLocalStream(stream);
+
+                // MediaPipe Hands Initialization (Dynamic Load)
+                let HandsModule: any;
+                try {
+                    // Try to get from global first (if script added) or dynamic require
+                    // Next.js/Turbopack sometimes fails on direct import for MediaPipe
+                    HandsModule = (window as any).Hands || require("@mediapipe/hands").Hands;
+                    if (!HandsModule && (window as any).Hands) HandsModule = (window as any).Hands;
+                } catch (e) {
+                    console.error("MediaPipe: Import error, attempting fallback", e);
+                }
+
+                if (HandsModule) {
+                    const hands = new HandsModule({
+                        locateFile: (file: string) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+                    });
+                    hands.setOptions({
+                        maxNumHands: 2,
+                        modelComplexity: 1,
+                        minDetectionConfidence: 0.5,
+                        minTrackingConfidence: 0.5
+                    });
+                    hands.onResults(onResults);
+                    handsRef.current = hands;
+
+                    // Set up processing loop
+                    let isProcessing = true;
+                    const processVideo = async () => {
+                        if (!isProcessing || !handsRef.current || !localVideoRef.current) return;
+                        try {
+                            // Only process if the video is playing and has data
+                            if (localVideoRef.current.readyState >= 2) {
+                                await handsRef.current.send({ image: localVideoRef.current });
+                            }
+                        } catch (e) {
+                            console.error("MediaPipe: Processing error", e);
+                        }
+                        if (isProcessing) requestAnimationFrame(processVideo);
+                    };
+                    requestAnimationFrame(processVideo);
+                }
 
                 // Connect socket
                 const socket = getSocket(accessToken);
@@ -295,6 +349,9 @@ export default function CallPage() {
             }
             disconnectSocket();
             isInitializing.current = false;
+            if (handsRef.current) {
+                handsRef.current.close();
+            }
         };
     }, [user, accessToken, router, roomId, createPeerConnection, startSpeechRecognition, addCaption, isLoading]);
 

@@ -1,4 +1,5 @@
 const Call = require('../models/Call');
+const SignClassifier = require('../utils/signClassifier');
 
 // Track active rooms: roomId -> { socketId -> userId }
 const rooms = new Map();
@@ -80,6 +81,29 @@ const initSocketHandlers = (io) => {
         // Speech-to-text caption from hearing user → broadcast to room
         socket.on('speech-caption', ({ roomId, text }) => {
             socket.to(roomId).emit('speech-caption', { text, from: socket.userId });
+        });
+
+        // Hand landmarks from deaf user → process and broadcast caption
+        socket.on('hand-landmarks', ({ roomId, landmarks }) => {
+            if (landmarks && landmarks.length > 0) {
+                // Throttle: once per second
+                const now = Date.now();
+                if (!socket.lastSignCaptionAt || now - socket.lastSignCaptionAt > 1000) {
+                    
+                    // We take the first hand detected for simplicity
+                    const detectedSign = SignClassifier.classify(landmarks[0]);
+                    
+                    if (detectedSign) {
+                        socket.lastSignCaptionAt = now;
+                        console.log(`🤖 AI: Detected "${detectedSign}" sign from ${socket.id}`);
+                        io.to(roomId).emit('sign-caption', { 
+                            text: detectedSign, 
+                            confidence: 0.95, 
+                            from: socket.userId 
+                        });
+                    }
+                }
+            }
         });
 
         // Sign language caption from AI → broadcast to room
