@@ -9,6 +9,7 @@ const { Server } = require('socket.io');
 require('dotenv').config();
 
 const authRoutes = require('./routes/auth');
+const mockAuthRoutes = require('./routes/mockAuth');
 const userRoutes = require('./routes/user');
 const callRoutes = require('./routes/call');
 const aiRoutes = require('./routes/ai');
@@ -42,7 +43,8 @@ app.use(morgan('dev'));
 app.use(passport.initialize());
 app.use(rateLimiter);
 
-// Routes
+// Routes — mock auth is mounted first so /api/auth/google/mock is matched before passport
+app.use('/api/auth', mockAuthRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/calls', callRoutes);
@@ -70,20 +72,22 @@ app.use((err, req, res, next) => {
 // Socket.IO signaling
 initSocketHandlers(io);
 
-// Connect to MongoDB & start server
+// Start server immediately, then attempt MongoDB in the background
 const PORT = process.env.PORT || 5000;
 
+server.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+});
+
+// Attempt MongoDB connection (non-blocking — server runs regardless)
 mongoose
     .connect(process.env.MONGODB_URI)
     .then(() => {
         console.log('✅ Connected to MongoDB');
-        server.listen(PORT, () => {
-            console.log(`🚀 Server running on port ${PORT}`);
-        });
     })
     .catch((err) => {
-        console.error('❌ MongoDB connection error:', err.message);
-        process.exit(1);
+        console.warn('⚠️  MongoDB connection failed:', err.message);
+        console.warn('⚠️  Running in mock/offline mode — only mock auth will work.');
     });
 
 // Handle unhandled rejections/exceptions to prevent silent crashes

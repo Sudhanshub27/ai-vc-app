@@ -50,15 +50,15 @@ export default function AuthCallbackPage() {
     }, [router, searchParams, setSession]);
 
     return (
-        <div className="min-h-screen bg-[#0a0a1a] flex flex-col items-center justify-center gap-4">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500 to-teal-500 flex items-center justify-center shadow-lg shadow-violet-500/30 animate-pulse">
+        <div className="min-h-screen bg-[#fbf9f5] flex flex-col items-center justify-center gap-6">
+            <div className="w-16 h-16 bg-[#9a442d] flex items-center justify-center tuscan-shadow animate-pulse">
                 <Hand size={28} className="text-white" />
             </div>
-            <div className="flex items-center gap-3 text-slate-300">
-                <Loader2 size={20} className="animate-spin text-violet-400" />
-                <span className="font-medium">Completing sign-in...</span>
+            <div className="flex items-center gap-3 text-[#55423e]">
+                <Loader2 size={20} className="animate-spin text-[#9a442d]" />
+                <span className="font-body font-medium">Completing sign-in...</span>
             </div>
-            <p className="text-slate-500 text-sm">You will be redirected shortly.</p>
+            <p className="text-[#88726d] text-sm font-body">You will be redirected shortly.</p>
         </div>
     );
 }

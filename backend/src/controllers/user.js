@@ -1,12 +1,24 @@
 const User = require('../models/User');
+const { mockUsers } = require('../routes/mockAuth');
 
 // GET /api/users/me
 const getMe = async (req, res) => {
     try {
+        // Check if this is a mock user first
+        if (req.userId && mockUsers.has(req.userId)) {
+            const mockUser = mockUsers.get(req.userId);
+            return res.json({ success: true, data: { user: mockUser } });
+        }
+
         const user = await User.findById(req.userId);
         if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
         return res.json({ success: true, data: { user } });
     } catch (err) {
+        // If MongoDB is down and this is a mock user, still return mock data
+        if (req.userId && mockUsers.has(req.userId)) {
+            const mockUser = mockUsers.get(req.userId);
+            return res.json({ success: true, data: { user: mockUser } });
+        }
         return res.status(500).json({ success: false, message: 'Server error.' });
     }
 };

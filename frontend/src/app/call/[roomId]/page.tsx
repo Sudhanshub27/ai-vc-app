@@ -61,8 +61,6 @@ export default function CallPage() {
 
     const clearBuffer = () => {
         setWordBuffer([]);
-        // Sync with backend if needed, but the backend buffer is primarily updated by signs
-        // For now, let's just clear local
     };
 
     const addCaption = useCallback((c: Caption) => {
@@ -170,8 +168,8 @@ export default function CallPage() {
         ];
 
         ctx.lineWidth = 3;
-        ctx.strokeStyle = '#10b981'; // Teal
-        ctx.fillStyle = '#10b981';
+        ctx.strokeStyle = '#e07a5f'; // Coral accent
+        ctx.fillStyle = '#e07a5f';
 
         landmarks.forEach((hand) => {
             // Draw skeleton
@@ -278,7 +276,7 @@ export default function CallPage() {
                                 if (candidateSign) {
                                     ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
                                     ctx.fillRect(0, canvas.height - 30, canvas.width, 30);
-                                    ctx.fillStyle = "#34d399";
+                                    ctx.fillStyle = "#e07a5f";
                                     ctx.font = "bold 14px Inter, sans-serif";
                                     ctx.textAlign = "center";
                                     ctx.fillText(candidateSign.toUpperCase(), canvas.width / 2, canvas.height - 10);
@@ -510,31 +508,29 @@ export default function CallPage() {
     const formatTime = (s: number) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
     return (
-        <div className="h-screen bg-[#0a0a1a] flex flex-col overflow-hidden">
+        <div className="h-screen bg-[#1b1c1a] flex flex-col overflow-hidden">
             {/* Top bar */}
-            <div className="glass border-b border-white/10 px-6 py-3 flex items-center justify-between shrink-0">
+            <div className="bg-[#2a2b29] border-b border-[#3a3b39] px-6 py-3 flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-3">
-                    <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-500 to-teal-500 flex items-center justify-center">
-                        <Hand size={14} className="text-white" />
-                    </div>
-                    <span className="font-jakarta font-bold text-sm gradient-text">SignBridge</span>
-                    <span className="text-slate-600 text-xs">·</span>
-                    <span className="text-slate-400 text-xs font-mono">{formatTime(callDuration)}</span>
+                    <Hand size={18} className="text-[#e07a5f]" />
+                    <span className="font-serif font-semibold text-sm text-[#f5f3ef]">SignBridge</span>
+                    <span className="text-[#55423e] text-xs">·</span>
+                    <span className="text-[#88726d] text-xs font-mono">{formatTime(callDuration)}</span>
                 </div>
                 <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-1.5 glass px-3 py-1.5 rounded-full">
-                        <Users size={13} className="text-violet-400" />
-                        <span className="text-xs text-slate-300">{participantCount}</span>
+                    <div className="flex items-center gap-1.5 bg-[#3a3b39] px-3 py-1.5 border border-[#55423e]/30">
+                        <Users size={13} className="text-[#e07a5f]" />
+                        <span className="text-xs text-[#dbc1ba]">{participantCount}</span>
                     </div>
-                    <div className={`flex items-center gap-1.5 glass px-3 py-1.5 rounded-full ${isConnected ? "border-emerald-700/30" : ""}`}>
+                    <div className={`flex items-center gap-1.5 bg-[#3a3b39] px-3 py-1.5 border ${isConnected ? "border-emerald-700/30" : "border-[#55423e]/30"}`}>
                         <span className={`w-2 h-2 rounded-full ${isConnected ? "bg-emerald-400 animate-pulse" : "bg-amber-400"}`} />
-                        <span className="text-xs text-slate-300">{isConnected ? "Connected" : "Waiting..."}</span>
+                        <span className="text-xs text-[#dbc1ba]">{isConnected ? "Connected" : "Waiting..."}</span>
                     </div>
                     <button
                         onClick={copyLink}
-                        className="flex items-center gap-1.5 glass px-3 py-1.5 rounded-full text-xs text-slate-300 hover:text-white hover:bg-white/10 transition-all"
+                        className="flex items-center gap-1.5 bg-[#3a3b39] px-3 py-1.5 border border-[#55423e]/30 text-xs text-[#dbc1ba] hover:text-white hover:border-[#9a442d] transition-all"
                     >
-                        {copied ? <Copy size={13} className="text-teal-400" /> : <Link2 size={13} />}
+                        {copied ? <Copy size={13} className="text-[#e07a5f]" /> : <Link2 size={13} />}
                         {copied ? "Copied!" : "Share"}
                     </button>
                 </div>
@@ -544,15 +540,15 @@ export default function CallPage() {
             <div className="flex-1 relative overflow-hidden p-6 flex items-center justify-center">
                 {loading ? (
                     <div className="flex flex-col items-center justify-center gap-4">
-                        <Loader2 size={36} className="text-violet-400 animate-spin" />
-                        <p className="text-slate-400">Initializing your session...</p>
+                        <Loader2 size={36} className="text-[#e07a5f] animate-spin" />
+                        <p className="text-[#88726d] font-body">Initializing your session...</p>
                     </div>
                 ) : (
                     <>
                         {/* Video Grid */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full h-full max-w-7xl mx-auto items-center">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full h-full max-w-7xl mx-auto items-center">
                             {/* Remote User */}
-                            <div className="relative group w-full aspect-video rounded-3xl overflow-hidden glass border border-white/5 shadow-2xl">
+                            <div className="relative group w-full aspect-video overflow-hidden bg-[#2a2b29] border border-[#3a3b39]">
                                 {remoteStream ? (
                                     <video
                                         ref={(el) => {
@@ -564,23 +560,23 @@ export default function CallPage() {
                                         className="w-full h-full object-cover mirror"
                                     />
                                 ) : (
-                                    <div className="w-full h-full flex flex-col items-center justify-center bg-[#0d0d1f]">
-                                        <div className="w-20 h-20 rounded-full bg-violet-500/10 flex items-center justify-center mb-4">
-                                            <Users size={32} className="text-violet-500/40" />
+                                    <div className="w-full h-full flex flex-col items-center justify-center bg-[#2a2b29]">
+                                        <div className="w-20 h-20 bg-[#55423e] flex items-center justify-center mb-4">
+                                            <Users size={32} className="text-[#88726d]" />
                                         </div>
-                                        <span className="text-slate-500 text-sm font-jakarta font-medium">
+                                        <span className="text-[#88726d] text-sm font-body">
                                             {participantCount > 1 ? "Connecting to peer..." : "Waiting for participant..."}
                                         </span>
                                     </div>
                                 )}
-                                <div className="absolute bottom-6 left-6 flex items-center gap-2 glass px-3 py-1.5 rounded-full backdrop-blur-md border border-white/10">
+                                <div className="absolute bottom-4 left-4 flex items-center gap-2 bg-[#1b1c1a]/80 px-3 py-1.5 border border-[#3a3b39]" style={{ backdropFilter: 'blur(4px)' }}>
                                     <span className={`w-2 h-2 rounded-full ${remoteStream ? "bg-emerald-400" : "bg-amber-400 animate-pulse"}`} />
-                                    <span className="text-xs text-white font-jakarta font-bold">Remote User</span>
+                                    <span className="text-xs text-[#f5f3ef] font-body font-semibold">Remote User</span>
                                 </div>
                             </div>
 
                             {/* Local User */}
-                            <div className="relative group w-full aspect-video rounded-3xl overflow-hidden glass border border-white/5 shadow-2xl">
+                            <div className="relative group w-full aspect-video overflow-hidden bg-[#2a2b29] border border-[#3a3b39]">
                                 <video
                                     ref={(el) => {
                                         if (el) el.srcObject = localStream;
@@ -592,56 +588,56 @@ export default function CallPage() {
                                     className={`w-full h-full object-cover mirror ${isCamOff ? "hidden" : ""}`}
                                 />
                                 {isCamOff && (
-                                    <div className="w-full h-full flex items-center justify-center bg-[#0d0d1f]">
-                                        <div className="w-24 h-24 rounded-full bg-gradient-to-br from-violet-500 to-teal-500 flex items-center justify-center text-3xl font-bold shadow-2xl">
+                                    <div className="w-full h-full flex items-center justify-center bg-[#2a2b29]">
+                                        <div className="w-24 h-24 rounded-full bg-[#9a442d] flex items-center justify-center text-3xl font-serif text-white">
                                             {user?.name?.charAt(0).toUpperCase()}
                                         </div>
                                     </div>
                                 )}
-                                <div className="absolute bottom-6 left-6 flex items-center gap-2 glass px-3 py-1.5 rounded-full backdrop-blur-md border border-white/10">
-                                    <span className="w-2 h-2 rounded-full bg-violet-400" />
-                                    <span className="text-xs text-white font-jakarta font-bold">You {isMuted && "(Muted)"}</span>
+                                <div className="absolute bottom-4 left-4 flex items-center gap-2 bg-[#1b1c1a]/80 px-3 py-1.5 border border-[#3a3b39]" style={{ backdropFilter: 'blur(4px)' }}>
+                                    <span className="w-2 h-2 rounded-full bg-[#e07a5f]" />
+                                    <span className="text-xs text-[#f5f3ef] font-body font-semibold">You {isMuted && "(Muted)"}</span>
                                 </div>
                             </div>
                         </div>
 
                         {/* AI Vision PIP Overlay */}
-                        <div className="absolute bottom-10 right-10 w-64 aspect-video rounded-2xl overflow-hidden glass border border-teal-500/40 shadow-2xl shadow-teal-500/20 group hover:scale-105 transition-all z-20 pointer-events-auto">
+                        <div className="absolute bottom-10 right-10 w-64 aspect-video overflow-hidden bg-[#2a2b29] border border-[#e07a5f]/40 shadow-2xl group hover:scale-105 transition-all z-20 pointer-events-auto">
                             <canvas
                                 ref={aiCanvasRef}
                                 width={240}
                                 height={180}
                                 className="w-full h-full object-cover mirror"
                             />
-                            <div className="absolute top-3 left-3 flex items-center gap-1.5 glass px-2 py-1 rounded-full border border-teal-500/20 bg-black/40 backdrop-blur-md">
-                                <Loader2 size={10} className="text-teal-400 animate-spin" />
-                                <span className="text-[10px] text-teal-400 font-bold uppercase tracking-widest">AI Vision</span>
+                            <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-[#1b1c1a]/70 px-2 py-1 border border-[#e07a5f]/30" style={{ backdropFilter: 'blur(4px)' }}>
+                                <Loader2 size={10} className="text-[#e07a5f] animate-spin" />
+                                <span className="text-[10px] text-[#e07a5f] font-label tracking-widest">AI VISION</span>
                             </div>
                         </div>
 
                         {/* Word Buffer Section */}
                         {(wordBuffer.length > 0 || candidateSign) && (
                             <div className="absolute top-10 left-1/2 -translate-x-1/2 max-w-xl w-full px-4 z-30 pointer-events-auto">
-                                <div className="glass border border-white/10 rounded-2xl p-4 flex flex-wrap gap-2 items-center shadow-2xl backdrop-blur-xl">
+                                <div className="bg-[#2a2b29]/95 border border-[#3a3b39] p-4 flex flex-wrap gap-2 items-center" style={{ backdropFilter: 'blur(8px)' }}>
                                     <div className="flex justify-between items-center w-full mb-1">
                                         <div className="flex items-center gap-2">
-                                            <span className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Detected Words:</span>
-                                            <span className="text-[10px] text-teal-500 animate-pulse font-medium">Hold sign for 0.3s to confirm</span>
+                                            <span className="text-[10px] font-label tracking-widest text-[#88726d]">Detected Words:</span>
+                                            <span className="text-[10px] text-[#e07a5f] animate-pulse font-body">Hold sign for 0.3s to confirm</span>
                                         </div>
                                         <button 
                                             onClick={clearBuffer}
-                                            className="text-[10px] text-slate-400 hover:text-white transition-colors flex items-center gap-1"
+                                            className="text-[10px] text-[#88726d] hover:text-white transition-colors flex items-center gap-1 font-body"
                                         >
                                             <X size={10} /> Clear
                                         </button>
                                     </div>
                                     {wordBuffer.map((word, idx) => (
-                                        <span key={idx} className="bg-violet-500/20 text-violet-300 px-2 py-1 rounded-md text-sm border border-violet-500/30">
+                                        <span key={idx} className="bg-[#9a442d]/20 text-[#ffdbd2] px-2 py-1 text-sm border border-[#9a442d]/30 font-body">
                                             {word}
                                         </span>
                                     ))}
                                     {candidateSign && (
-                                        <span className="bg-emerald-500/10 text-emerald-300 px-2 py-1 rounded-md text-sm border border-emerald-500/20 italic opacity-70 animate-pulse">
+                                        <span className="bg-[#e07a5f]/10 text-[#e07a5f] px-2 py-1 text-sm border border-[#e07a5f]/20 italic opacity-70 animate-pulse font-body">
                                             {candidateSign}...
                                         </span>
                                     )}
@@ -655,22 +651,23 @@ export default function CallPage() {
                                 {captions.map((c, i) => (
                                     <div
                                         key={c.timestamp + i}
-                                        className={`glass rounded-xl px-4 py-3 flex items-start gap-3 border shadow-2xl backdrop-blur-md animate-in fade-in zoom-in slide-in-from-bottom-2 duration-200 ${
-                                            c.type === "sign" ? "border-violet-500/40" : "border-teal-500/40"
+                                        className={`bg-[#2a2b29]/95 px-4 py-3 flex items-start gap-3 border animate-fade-up ${
+                                            c.type === "sign" ? "border-[#9a442d]/40" : "border-[#e07a5f]/40"
                                         }`}
+                                        style={{ backdropFilter: 'blur(8px)' }}
                                     >
                                         {c.type === "sign" ? (
-                                            <Hand size={16} className="text-violet-400 shrink-0 mt-0.5" />
+                                            <Hand size={16} className="text-[#9a442d] shrink-0 mt-0.5" />
                                         ) : (
-                                            <MessageSquare size={16} className="text-teal-400 shrink-0 mt-0.5" />
+                                            <MessageSquare size={16} className="text-[#e07a5f] shrink-0 mt-0.5" />
                                         )}
                                         <div className="flex flex-col">
-                                            <span className={`text-[10px] font-bold uppercase tracking-wider mb-0.5 ${
-                                                c.type === "sign" ? "text-violet-400" : "text-teal-400"
+                                            <span className={`text-[10px] font-label tracking-widest mb-0.5 ${
+                                                c.type === "sign" ? "text-[#9a442d]" : "text-[#e07a5f]"
                                             }`}>
                                                 {c.type === "sign" ? (c.isFramed ? "AI Sentence" : "Sign") : "Speech"}
                                             </span>
-                                            <span className="text-sm text-white font-medium leading-relaxed">{c.text}</span>
+                                            <span className="text-sm text-[#f5f3ef] font-body leading-relaxed">{c.text}</span>
                                         </div>
                                     </div>
                                 ))}
@@ -681,33 +678,33 @@ export default function CallPage() {
             </div>
 
             {/* Controls */}
-            <div className="glass border-t border-white/10 px-8 py-6 flex items-center justify-center gap-6 shrink-0 relative z-40">
+            <div className="bg-[#2a2b29] border-t border-[#3a3b39] px-8 py-5 flex items-center justify-center gap-5 shrink-0 relative z-40">
                 <button
                     onClick={toggleMute}
-                    className={`group w-12 h-12 rounded-full flex items-center justify-center transition-all ${
-                        isMuted ? "bg-red-500 shadow-lg shadow-red-900/20" : "glass hover:bg-white/10"
+                    className={`group w-12 h-12 flex items-center justify-center transition-all border ${
+                        isMuted ? "bg-[#ba1a1a] border-[#ba1a1a] shadow-lg shadow-red-900/20" : "bg-[#3a3b39] border-[#55423e]/30 hover:border-[#88726d]"
                     }`}
                 >
-                    {isMuted ? <MicOff size={20} className="text-white" /> : <Mic size={20} className="group-hover:text-white text-slate-400" />}
+                    {isMuted ? <MicOff size={20} className="text-white" /> : <Mic size={20} className="group-hover:text-white text-[#88726d]" />}
                 </button>
 
                 <button
                     onClick={toggleCam}
-                    className={`group w-12 h-12 rounded-full flex items-center justify-center transition-all ${
-                        isCamOff ? "bg-red-500 shadow-lg shadow-red-900/20" : "glass hover:bg-white/10"
+                    className={`group w-12 h-12 flex items-center justify-center transition-all border ${
+                        isCamOff ? "bg-[#ba1a1a] border-[#ba1a1a] shadow-lg shadow-red-900/20" : "bg-[#3a3b39] border-[#55423e]/30 hover:border-[#88726d]"
                     }`}
                 >
-                    {isCamOff ? <VideoOff size={20} className="text-white" /> : <Video size={20} className="group-hover:text-white text-slate-400" />}
+                    {isCamOff ? <VideoOff size={20} className="text-white" /> : <Video size={20} className="group-hover:text-white text-[#88726d]" />}
                 </button>
 
                 <button
                     onClick={endCall}
-                    className="w-14 h-14 rounded-xl bg-red-600 hover:bg-red-700 flex items-center justify-center transition-all shadow-xl shadow-red-900/40 hover:scale-105 active:scale-95"
+                    className="w-14 h-14 bg-[#ba1a1a] hover:bg-red-700 flex items-center justify-center transition-all shadow-xl shadow-red-900/40 hover:scale-105 active:scale-95"
                 >
                     <PhoneOff size={24} className="text-white" />
                 </button>
 
-                <div className="h-8 w-[1px] bg-white/10 mx-2" />
+                <div className="h-8 w-[1px] bg-[#3a3b39] mx-2" />
 
                 <button
                     onClick={() => {
@@ -716,14 +713,14 @@ export default function CallPage() {
                         }
                     }}
                     disabled={wordBuffer.length === 0}
-                    className={`h-12 px-6 rounded-xl flex items-center gap-2 transition-all ${
+                    className={`h-12 px-6 flex items-center gap-2 transition-all border ${
                         wordBuffer.length > 0 
-                        ? "bg-gradient-to-r from-violet-600 to-teal-600 text-white shadow-xl shadow-violet-900/20 hover:scale-105 active:scale-95" 
-                        : "glass text-slate-600 opacity-40 cursor-not-allowed"
+                        ? "bg-[#9a442d] border-[#9a442d] text-white shadow-xl shadow-[#9a442d]/20 hover:bg-[#7c2e19] hover:scale-105 active:scale-95" 
+                        : "bg-[#3a3b39] border-[#55423e]/30 text-[#55423e] opacity-40 cursor-not-allowed"
                     }`}
                 >
                     <Wand2 size={18} className={wordBuffer.length > 0 ? "animate-pulse" : ""} />
-                    <span className="text-sm font-bold uppercase tracking-wider">AI Frame</span>
+                    <span className="text-sm font-label tracking-wider">AI Frame</span>
                 </button>
             </div>
         </div>

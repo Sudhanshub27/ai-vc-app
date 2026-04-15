@@ -49,7 +49,7 @@ fi
 # Pre-start cleanup: Kill existing processes on ports and remove locks
 echo "🧹 Cleaning up existing processes and locks..."
 # Backend usually on 5000, Frontend on 3000
-lsof -ti:3000,5000 | xargs kill -9 2>/dev/null
+lsof -ti:3000,5001 | xargs kill -9 2>/dev/null
 rm -f frontend/.next/dev/lock 2>/dev/null
 sleep 1
 
@@ -63,7 +63,7 @@ echo "💻 [2/2] Starting Frontend Next.js App..."
 
 echo "---------------------------------------"
 echo "✅ Both services are starting!"
-echo "📡 Backend: http://localhost:5000"
+echo "📡 Backend: http://localhost:5001"
 echo "🌐 Frontend: http://localhost:3000"
 echo "Press Ctrl+C to stop both."
 echo "---------------------------------------"
